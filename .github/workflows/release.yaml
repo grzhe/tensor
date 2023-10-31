@@ -154,4 +154,4 @@ jobs:
       - name: "Publish Package"
         run: mvn deploy -B -Dmaven.test.skip=true # will fail if package already exists
         env:
-          GITHUB_TOKEN: ${{ secrets.ACTIONS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
