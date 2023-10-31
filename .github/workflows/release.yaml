@@ -1,0 +1,151 @@
+name: Release Action
+
+on:
+  workflow_dispatch:
+    inputs:
+      releaseVersion:
+        description: 'Define the release version'
+        required: true
+        type: string
+        default: '-jdk-17-grz'
+      developmentVersion:
+        description: 'Define the development version'
+        required: true
+        type: string
+        default: '-jdk-17-grz-SNAPSHOT'
+      releaseBranch:
+        description: 'Create or replace release branch'
+        required: true
+        type: boolean
+        default: true
+
+jobs:
+  build:
+    name: "Build and test"
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[ci skip]')"
+    steps:
+      - uses: actions/checkout@v3
+      - name: "Build and test"
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+          server-id: 'github'
+      - name: "Run Unit Tests"
+        run: mvn test -B
+
+  maven-release:
+    name: "Maven release"
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Release version overview"
+        run: |
+          echo "Release version: ${{inputs.releaseVersion}}"
+          echo "Development version: ${{inputs.developmentVersion}}"
+
+      - uses: actions/checkout@v3
+      - name: "Perform release"
+        uses: qcastel/github-actions-maven-release@v1.12.39
+        env:
+          JAVA_HOME: /usr/lib/jvm/java-17-openjdk/
+        with:
+          maven-args: "-Dmaven.javadoc.skip=true -DskipTests -DskipITs -Dmaven.deploy.skip=true"
+          maven-options: "-DbranchName=release"
+          release-branch-name: "main"
+          maven-release-version-number: ${{inputs.releaseVersion}}
+          maven-development-version-number: ${{inputs.developmentVersion}}
+
+  github-release:
+    name: "Github Release"
+    needs: maven-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # Required due to the way Git works, without it this action won't be able to find any or the correct tags
+
+      - name: "Generate changelog"
+        run: echo "# Grz Test Release" > ${{ github.workspace }}-CHANGELOG.txt
+
+      - name: "Get previous tag"
+        id: previoustag
+        uses: WyriHaximus/github-action-get-previous-tag@v1.3.0
+
+      - name: "Fill changelog"
+        id: github_release_changelog
+        uses: mikepenz/release-changelog-builder-action@v4.0.0
+        with:
+          configurationJson: |
+            {
+              "categories": [
+                {
+                  "title": "## 🚀 Features",
+                  "labels": ["feature", "enhancement"]
+                },
+                {
+                  "title": "## 🐛 Fixes",
+                  "labels": ["fix", "bug"]
+                },
+                {
+                  "title": "## 🧪 Tests",
+                  "labels": ["test"]
+                },
+                {
+                  "title": "## 📦 Dependencies",
+                  "labels": ["dependencies"]
+                }
+              ]
+            }
+
+      - name: "Perform release"
+        uses: softprops/action-gh-release@v0.1.15
+        with:
+          body: ${{steps.github_release_changelog.outputs.changelog}}
+          tag_name: ${{ steps.previoustag.outputs.tag }}
+
+      - name: 'Delete existing release branch'
+        if: ${{ inputs.releaseBranch }}
+        uses: dawidd6/action-delete-branch@v3
+        with:
+          branches: release
+          soft_fail: true
+
+      - name: 'Create new release branch'
+        if: ${{ inputs.releaseBranch }}
+        uses: satya-500/create-branch-from-tag@v1.0
+        with:
+          branch: release
+          from: ${{ steps.previoustag.outputs.tag }}
+
+  publish-package:
+    name: "Publish package"
+    needs: github-release
+    runs-on: ubuntu-latest
+    steps:
+
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # Required due to the way Git works, without it this action won't be able to find any or the correct tags
+
+      - name: "Get previous tag"
+        id: previoustag
+        uses: WyriHaximus/github-action-get-previous-tag@v1.3.0
+
+      - name: "Checkout tag"
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ steps.previoustag.outputs.tag }}
+
+      - name: "Prepare environment"
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+          server-id: 'github'
+
+      - name: "Publish Package"
+        run: mvn deploy -B -Dmaven.test.skip=true # will fail if package already exists
