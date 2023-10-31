@@ -55,6 +55,7 @@ jobs:
           maven-args: "-Dmaven.javadoc.skip=true -DskipTests -DskipITs -Dmaven.deploy.skip=true"
           maven-options: "-DbranchName=release"
           release-branch-name: "jdk-17-grz"
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
           maven-release-version-number: ${{inputs.releaseVersion}}
           maven-development-version-number: ${{inputs.developmentVersion}}
 
