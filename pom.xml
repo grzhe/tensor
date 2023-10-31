@@ -3,7 +3,7 @@
 
 	<groupId>grz</groupId>
 	<artifactId>tensor</artifactId>
-	<version>1.0.9-jdk-17-grz-SNAPSHOT</version>
+	<version>1.0.8-jdk-17-grz-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
 	<name>tensor</name>
@@ -69,7 +69,7 @@
 				<version>${maven-release-plugin.version}</version>
 				<configuration>
 					<scmCommentPrefix>[ci skip]</scmCommentPrefix>
-					<tagNameFormat>3.0.1</tagNameFormat>
+					<tagNameFormat>@{project.version}-jdk-17-grz</tagNameFormat>
 				</configuration>
 			</plugin>
 		</plugins>
