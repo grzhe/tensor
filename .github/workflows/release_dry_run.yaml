@@ -1,0 +1,60 @@
+name: Release Dry Run
+
+on:
+  workflow_dispatch:
+    inputs:
+      releaseVersion:
+        description: 'Define the release version'
+        required: true
+        type: string
+        default: '-jdk-17-grz'
+      developmentVersion:
+        description: 'Define the development version'
+        required: true
+        type: string
+        default: '-jdk-17-grz-SNAPSHOT'
+      releaseBranch:
+        description: 'Create or replace release branch'
+        required: true
+        type: boolean
+        default: true
+
+jobs:
+  build:
+    name: "Build and test"
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[ci skip]')"
+    steps:
+      - uses: actions/checkout@v3
+      - name: "Build and test"
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+          server-id: 'github'
+      - name: "Run Unit Tests"
+        run: mvn test -B
+
+  maven-release:
+    name: "Maven release"
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Release version overview"
+        run: |
+          echo "Release version: ${{inputs.releaseVersion}}"
+          echo "Development version: ${{inputs.developmentVersion}}"
+
+      - uses: actions/checkout@v3
+      - name: "Perform release"
+        uses: qcastel/github-actions-maven-release@v1.12.39
+        env:
+          JAVA_HOME: /usr/lib/jvm/java-17-openjdk/
+        with:
+          maven-args: "-Dmaven.javadoc.skip=true -DskipTests -DskipITs -Dmaven.deploy.skip=true"
+          maven-options: "-DdryRun=true -DbranchName=release"
+          release-branch-name: "jdk-17-grz"
+          maven-release-version-number: ${{inputs.releaseVersion}}
+          maven-development-version-number: ${{inputs.developmentVersion}}
+          skip-perform: true
