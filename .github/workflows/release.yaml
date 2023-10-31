@@ -54,7 +54,7 @@ jobs:
         with:
           maven-args: "-Dmaven.javadoc.skip=true -DskipTests -DskipITs -Dmaven.deploy.skip=true"
           maven-options: "-DbranchName=release"
-          release-branch-name: "main"
+          release-branch-name: "jdk-17-grz"
           maven-release-version-number: ${{inputs.releaseVersion}}
           maven-development-version-number: ${{inputs.developmentVersion}}
 
@@ -110,12 +110,15 @@ jobs:
         if: ${{ inputs.releaseBranch }}
         uses: dawidd6/action-delete-branch@v3
         with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           branches: release
           soft_fail: true
 
       - name: 'Create new release branch'
         if: ${{ inputs.releaseBranch }}
         uses: satya-500/create-branch-from-tag@v1.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           branch: release
           from: ${{ steps.previoustag.outputs.tag }}
